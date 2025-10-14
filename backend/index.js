@@ -7,7 +7,8 @@ const { initSocket } = require("./socket/index.js");
 const app = express();
 app.use(cors({
   origin: [
-    "http://localhost:3000"
+    "https://aquamarine-axolotl-a57d6e.netlify.app",
+    "https://mern-chat-app-y5vo.onrender.com/"
     
   ],
   methods: ["GET", "POST"],
