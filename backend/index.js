@@ -8,7 +8,7 @@ const app = express();
 app.use(cors({
   origin: [
     "http://localhost:3000",
-    "https://chat-app-u2cq.onrender.com"
+    
   ],
   methods: ["GET", "POST"],
   credentials: true,
