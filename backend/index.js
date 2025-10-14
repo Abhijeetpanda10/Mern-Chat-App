@@ -7,7 +7,7 @@ const { initSocket } = require("./socket/index.js");
 const app = express();
 app.use(cors({
   origin: [
-    "http://localhost:3000",
+    "http://localhost:3000"
     
   ],
   methods: ["GET", "POST"],
@@ -36,3 +36,5 @@ server.listen(PORT, () => {
   console.log(`🚀 Server started at http://localhost:${PORT}`);
   connectDB();
 });
+
+
