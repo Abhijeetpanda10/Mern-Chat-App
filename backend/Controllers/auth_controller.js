@@ -5,9 +5,9 @@ const nodemailer = require("nodemailer");
 const dotenv = require("dotenv");
 dotenv.config({ path: "./.env" });
 
-const JWT_SECRET = process.env.JWT_SECRET || "default_secret_key"; // fallback
+const JWT_SECRET = process.env.JWT_SECRET || "default_secret_key"; // fallback key
 
-// ✅ Setup nodemailer only if credentials exist
+// ✅ Configure email (optional)
 let mailTransporter = null;
 if (process.env.EMAIL && process.env.PASSWORD) {
   mailTransporter = nodemailer.createTransport({
@@ -21,22 +21,21 @@ if (process.env.EMAIL && process.env.PASSWORD) {
   console.warn("⚠️ EMAIL or PASSWORD missing in .env — OTP feature disabled");
 }
 
-// ✅ REGISTER
+// ✅ REGISTER USER
 const register = async (req, res) => {
   try {
     console.log("➡️ REGISTER request received");
 
     const { name, email, password } = req.body;
-    if (!name || !email || !password) {
+    if (!name || !email || !password)
       return res.status(400).json({ error: "Please fill all the fields" });
-    }
 
     const existingUser = await User.findOne({ email });
-    if (existingUser) {
+    if (existingUser)
       return res.status(400).json({ error: "User already exists" });
-    }
 
     const imageUrl = `https://ui-avatars.com/api/?name=${name}&background=random&bold=true`;
+
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
@@ -63,34 +62,29 @@ const register = async (req, res) => {
   }
 };
 
-// ✅ LOGIN
+// ✅ LOGIN USER
 const login = async (req, res) => {
   console.log("➡️ LOGIN request received");
   try {
     const { email, password, otp } = req.body;
-
-    if (!email || (!password && !otp)) {
+    if (!email || (!password && !otp))
       return res.status(400).json({ error: "Please fill all the fields" });
-    }
 
     const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(400).json({ error: "Invalid Credentials" });
-    }
+    if (!user) return res.status(400).json({ error: "Invalid Credentials" });
 
     // ✅ OTP login
     if (otp) {
-      if (user.otp !== otp) {
+      if (user.otp !== otp)
         return res.status(400).json({ error: "Invalid OTP" });
-      }
+
       user.otp = "";
       await user.save();
     } else {
       // ✅ Password login
       const passwordCompare = await bcrypt.compare(password, user.password);
-      if (!passwordCompare) {
+      if (!passwordCompare)
         return res.status(400).json({ error: "Invalid Credentials" });
-      }
     }
 
     const data = { user: { id: user.id } };
@@ -111,14 +105,13 @@ const login = async (req, res) => {
   }
 };
 
-// ✅ AUTH USER
+// ✅ AUTH USER BY TOKEN
 const authUser = async (req, res) => {
   const token = req.header("auth-token");
-  if (!token) {
+  if (!token)
     return res
       .status(401)
       .json({ error: "Please authenticate using a valid token" });
-  }
 
   try {
     const data = jwt.verify(token, JWT_SECRET);
@@ -134,18 +127,15 @@ const authUser = async (req, res) => {
 const updateprofile = async (req, res) => {
   try {
     const dbuser = await User.findById(req.user.id);
-    if (!dbuser) {
-      return res.status(404).json({ error: "User not found" });
-    }
+    if (!dbuser) return res.status(404).json({ error: "User not found" });
 
     if (req.body.newpassword) {
       const passwordCompare = await bcrypt.compare(
         req.body.oldpassword,
         dbuser.password
       );
-      if (!passwordCompare) {
+      if (!passwordCompare)
         return res.status(400).json({ error: "Invalid Credentials" });
-      }
 
       const salt = await bcrypt.genSalt(10);
       const hashedNewPassword = await bcrypt.hash(req.body.newpassword, salt);
@@ -163,22 +153,19 @@ const updateprofile = async (req, res) => {
   }
 };
 
-// ✅ SEND OTP
+// ✅ SEND OTP (for login/forgot password)
 const sendotp = async (req, res) => {
   try {
     console.log("➡️ SEND OTP request received");
     const { email } = req.body;
 
     const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(400).json({ error: "User not found" });
-    }
+    if (!user) return res.status(400).json({ error: "User not found" });
 
-    if (!mailTransporter) {
+    if (!mailTransporter)
       return res
         .status(503)
         .json({ error: "Email service not configured. OTP cannot be sent." });
-    }
 
     const otp = Math.floor(100000 + Math.random() * 900000);
     user.otp = otp;
@@ -210,4 +197,26 @@ const sendotp = async (req, res) => {
   }
 };
 
-module.exports = { register, login, authUser, updateprofile, sendotp };
+// ✅ ADD THIS (Non-friends list)
+const getNonFriendsList = async (req, res) => {
+  try {
+    const loggedInUserId = req.user.id;
+    const users = await User.find({ _id: { $ne: loggedInUserId } }).select(
+      "-password"
+    );
+    res.status(200).json(users);
+  } catch (error) {
+    console.error("GET NON FRIENDS ERROR:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+// ✅ EXPORT EVERYTHING
+module.exports = {
+  register,
+  login,
+  authUser,
+  updateprofile,
+  sendotp,
+  getNonFriendsList,
+};
