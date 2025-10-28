@@ -5,7 +5,7 @@ const nodemailer = require("nodemailer");
 const dotenv = require("dotenv");
 dotenv.config({ path: "./.env" });
 
-const JWT_SECRET = process.env.JWT_SECRET || "default_secret_key"; // fallback to avoid crashes
+const JWT_SECRET = process.env.JWT_SECRET || "default_secret_key"; // fallback
 
 // ✅ Setup nodemailer only if credentials exist
 let mailTransporter = null;
@@ -24,7 +24,7 @@ if (process.env.EMAIL && process.env.PASSWORD) {
 // ✅ REGISTER
 const register = async (req, res) => {
   try {
-    console.log("register request received");
+    console.log("➡️ REGISTER request received");
 
     const { name, email, password } = req.body;
     if (!name || !email || !password) {
@@ -37,7 +37,6 @@ const register = async (req, res) => {
     }
 
     const imageUrl = `https://ui-avatars.com/api/?name=${name}&background=random&bold=true`;
-
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
@@ -60,13 +59,13 @@ const register = async (req, res) => {
     });
   } catch (error) {
     console.error("REGISTER ERROR:", error);
-    res.status(500).send("Internal Server Error");
+    res.status(500).json({ error: "Internal Server Error" });
   }
 };
 
 // ✅ LOGIN
 const login = async (req, res) => {
-  console.log("login request received");
+  console.log("➡️ LOGIN request received");
   try {
     const { email, password, otp } = req.body;
 
@@ -97,7 +96,7 @@ const login = async (req, res) => {
     const data = { user: { id: user.id } };
     const authtoken = jwt.sign(data, JWT_SECRET, { expiresIn: "7d" });
 
-    res.json({
+    res.status(200).json({
       authtoken,
       user: {
         _id: user.id,
@@ -108,7 +107,7 @@ const login = async (req, res) => {
     });
   } catch (error) {
     console.error("LOGIN ERROR:", error);
-    res.status(500).send("Internal Server Error");
+    res.status(500).json({ error: "Internal Server Error" });
   }
 };
 
@@ -116,7 +115,9 @@ const login = async (req, res) => {
 const authUser = async (req, res) => {
   const token = req.header("auth-token");
   if (!token) {
-    return res.status(401).send("Please authenticate using a valid token");
+    return res
+      .status(401)
+      .json({ error: "Please authenticate using a valid token" });
   }
 
   try {
@@ -125,7 +126,7 @@ const authUser = async (req, res) => {
     res.json(user);
   } catch (error) {
     console.error("AUTH ERROR:", error);
-    res.status(500).send("Internal Server Error");
+    res.status(500).json({ error: "Internal Server Error" });
   }
 };
 
@@ -158,14 +159,14 @@ const updateprofile = async (req, res) => {
     res.status(200).json({ message: "Profile Updated" });
   } catch (error) {
     console.error("UPDATE PROFILE ERROR:", error);
-    res.status(500).send("Internal Server Error");
+    res.status(500).json({ error: "Internal Server Error" });
   }
 };
 
-// ✅ SEND OTP (skips if Gmail not configured)
+// ✅ SEND OTP
 const sendotp = async (req, res) => {
   try {
-    console.log("sendotp request received");
+    console.log("➡️ SEND OTP request received");
     const { email } = req.body;
 
     const user = await User.findOne({ email });
@@ -174,9 +175,9 @@ const sendotp = async (req, res) => {
     }
 
     if (!mailTransporter) {
-      return res.status(503).json({
-        error: "Email service not configured. OTP cannot be sent.",
-      });
+      return res
+        .status(503)
+        .json({ error: "Email service not configured. OTP cannot be sent." });
     }
 
     const otp = Math.floor(100000 + Math.random() * 900000);
@@ -200,25 +201,13 @@ const sendotp = async (req, res) => {
       `,
     };
 
-    mailTransporter.sendMail(mailDetails, (err) => {
-      if (err) {
-        console.error("MAIL ERROR:", err);
-        res.status(400).json({ message: "Error sending OTP" });
-      } else {
-        console.log("Email sent successfully");
-        res.status(200).json({ message: "OTP sent successfully" });
-      }
-    });
+    await mailTransporter.sendMail(mailDetails);
+    console.log(`📩 OTP sent to ${email}: ${otp}`);
+    res.status(200).json({ message: "OTP sent successfully" });
   } catch (error) {
     console.error("SEND OTP ERROR:", error);
-    res.status(500).send("Internal Server Error");
+    res.status(500).json({ error: "Internal Server Error" });
   }
 };
 
-module.exports = {
-  register,
-  login,
-  authUser,
-  updateprofile,
-  sendotp,
-};
+module.exports = { register, login, authUser, updateprofile, sendotp };
