@@ -20,91 +20,83 @@ import {
 import { LockIcon } from "@chakra-ui/icons";
 
 const Signup = (props) => {
-  const context = useContext(chatContext);
-  const {hostName} = context
+  const { hostName } = useContext(chatContext);
   const toast = useToast();
 
   const [showPassword, setShowPassword] = useState(false);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
-  const [name, setname] = useState("");
-  const [email, setemail] = useState("");
-  const [password, setpassword] = useState("");
-  const [confirmpassword, setconfirmpassword] = useState("");
+  const handleTabs = props.handleTabsChange;
 
-  const handletabs = props.handleTabsChange;
-
-  function showtoast(description) {
+  const showToast = (title, description, status) => {
     toast({
-      title: "An error occurred.",
-      description: description,
-      status: "error",
-      duration: 5000,
+      title,
+      description,
+      status,
+      duration: 4000,
       isClosable: true,
     });
-  }
+  };
 
   const handleShowClick = () => setShowPassword(!showPassword);
 
   const handleSignup = async (e) => {
     e.preventDefault();
 
-    if (email === "" || name === "" || password === "") {
-      showtoast("All fields are required");
+    if (!name || !email || !password || !confirmPassword) {
+      showToast("Missing fields", "All fields are required", "warning");
       return;
-    } else if (name.length > 20 || name.length < 3) {
-      showtoast("Name should be atlest 3 and atmost 20 characters long");
-      return;
-    } else if (!email.includes("@") || !email.includes(".")) {
-      showtoast("Invalid email");
-      return;
-    } else if (email.length > 50) {
-      showtoast("Email should be atmost 50 characters long");
-      return;
-    } else if (password.length < 8 || password.length > 20) {
-      showtoast("Invalid Password");
-      return;
-    } else if (password !== confirmpassword) {
-      showtoast("Passwords do not match");
-      return;
-    } else {
-      const payload = {
-        email,
-        name,
-        password,
-      };
-
-      toast.promise(
-        fetch(`${hostName}/auth/register`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
-        })
-          .then((response) => {
-            if (response.status !== 200) {
-              response.json().then((resdata) => {});
-              throw new Error("Failed to fetch data");
-            } else {
-              response.json().then((resdata) => {
-                localStorage.setItem("token", resdata.authtoken);
-                handletabs(0);
-              });
-            }
-          })
-          .catch((error) => {}),
-        {
-          loading: { title: "Creating account...", description: "please wait" },
-          success: {
-            title: "Account created.",
-            description: "We have created your account for you.",
-          },
-          error: {
-            title: "An error occurred.",
-            description: "We were unable to create your account.",
-          },
-        }
+    }
+    if (name.length < 3 || name.length > 20) {
+      showToast(
+        "Invalid Name",
+        "Name should be between 3 and 20 characters",
+        "error"
       );
+      return;
+    }
+    if (!email.includes("@") || !email.includes(".")) {
+      showToast("Invalid Email", "Please enter a valid email", "error");
+      return;
+    }
+    if (password.length < 8 || password.length > 20) {
+      showToast(
+        "Invalid Password",
+        "Password must be between 8 and 20 characters",
+        "error"
+      );
+      return;
+    }
+    if (password !== confirmPassword) {
+      showToast("Mismatch", "Passwords do not match", "error");
+      return;
+    }
+
+    try {
+      const response = await fetch(`${hostName}/auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, password }),
+      });
+
+      const resData = await response.json();
+
+      if (response.status !== 200) {
+        showToast("Signup Failed", resData.error || "Please try again", "error");
+        return;
+      }
+
+      localStorage.setItem("token", resData.authtoken);
+      showToast("Success", "Account created successfully!", "success");
+
+      // Redirect user to login tab
+      handleTabs(0);
+    } catch (error) {
+      console.error(error);
+      showToast("Error", "Server not responding", "error");
     }
   };
 
@@ -117,99 +109,51 @@ const Signup = (props) => {
       alignItems="center"
       borderRadius={15}
     >
-      <Stack
-        flexDir="column"
-        mb="2"
-        justifyContent="center"
-        alignItems="center"
-      >
+      <Stack flexDir="column" mb="2" alignItems="center">
         <Avatar bg="purple.300" />
-        <Heading color="pruple.400">Welcome</Heading>
-        <Card minW={{ base: "90%", md: "468px" }} borderRadius={15} shadow={0}>
-          <CardBody p={0}>
+        <Heading color="purple.400">Welcome</Heading>
+
+        <Card minW={{ base: "90%", md: "468px" }} borderRadius={15}>
+          <CardBody>
             <form>
               <Stack spacing={4}>
                 <FormControl>
-                  <InputGroup
-                    borderEndRadius={"10px"}
-                    borderStartRadius={"10px"}
-                    size={"lg"}
-                  >
+                  <InputGroup size="lg">
                     <Input
                       type="text"
                       placeholder="Enter your name"
                       focusBorderColor="purple.500"
-                      onChange={(e) => setname(e.target.value)}
-                      required
+                      onChange={(e) => setName(e.target.value)}
                     />
                   </InputGroup>
                 </FormControl>
 
                 <FormControl>
-                  <InputGroup
-                    borderEndRadius={"10px"}
-                    borderStartRadius={"10px"}
-                    size={"lg"}
-                  >
+                  <InputGroup size="lg">
                     <Input
                       type="email"
                       placeholder="Email address"
                       focusBorderColor="purple.500"
-                      onChange={(e) => setemail(e.target.value)}
+                      onChange={(e) => setEmail(e.target.value)}
                     />
                   </InputGroup>
                 </FormControl>
 
                 <FormControl>
-                  <InputGroup
-                    borderEndRadius={"10px"}
-                    borderStartRadius={"10px"}
-                    size={"lg"}
-                  >
-                    <InputLeftElement
-                      pointerEvents="none"
-                      color="gray.300"
-                      children={<LockIcon color="gray.300" />}
-                    />
+                  <InputGroup size="lg">
+                    <InputLeftElement pointerEvents="none">
+                      <LockIcon color="gray.300" />
+                    </InputLeftElement>
                     <Input
                       type={showPassword ? "text" : "password"}
                       placeholder="Password"
                       focusBorderColor="purple.500"
-                      onChange={(e) => setpassword(e.target.value)}
+                      onChange={(e) => setPassword(e.target.value)}
                     />
                     <InputRightElement mx={1}>
                       <Button
-                        fontSize={"x-small"}
-                        size={"xs"}
-                        onClick={handleShowClick}
-                      >
-                        {showPassword ? "Hide" : "Show"}
-                      </Button>
-                    </InputRightElement>
-                  </InputGroup>
-
-                  <InputGroup
-                    borderEndRadius={"10px"}
-                    borderStartRadius={"10px"}
-                    size={"lg"}
-                    my={4}
-                  >
-                    <InputLeftElement
-                      pointerEvents="none"
-                      color="gray.300"
-                      children={<LockIcon color="gray.300" />}
-                    />
-                    <Input
-                      textOverflow={"ellipsis"}
-                      type={showPassword ? "text" : "password"}
-                      placeholder="Confirm Password"
-                      focusBorderColor="purple.500"
-                      onChange={(e) => setconfirmpassword(e.target.value)}
-                    />
-                    <InputRightElement mx={1}>
-                      <Button
-                        fontSize={"x-small"}
-                        size={"xs"}
+                        fontSize="x-small"
+                        size="xs"
                         onClick={handleShowClick}
                       >
                         {showPassword ? "Hide" : "Show"}
@@ -217,25 +161,48 @@ const Signup = (props) => {
                     </InputRightElement>
                   </InputGroup>
                 </FormControl>
+
+                <FormControl>
+                  <InputGroup size="lg">
+                    <InputLeftElement pointerEvents="none">
+                      <LockIcon color="gray.300" />
+                    </InputLeftElement>
+                    <Input
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Confirm Password"
+                      focusBorderColor="purple.500"
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                    />
+                    <InputRightElement mx={1}>
+                      <Button
+                        fontSize="x-small"
+                        size="xs"
+                        onClick={handleShowClick}
+                      >
+                        {showPassword ? "Hide" : "Show"}
+                      </Button>
+                    </InputRightElement>
+                  </InputGroup>
+                </FormControl>
+
                 <Button
                   borderRadius={10}
-                  type="submit"
-                  variant="solid"
                   colorScheme="purple"
                   width="full"
                   onClick={handleSignup}
                 >
-                  Signup
+                  Sign Up
                 </Button>
               </Stack>
             </form>
           </CardBody>
         </Card>
       </Stack>
+
       <Box>
-        Already have account?{" "}
-        <Link color="purple.500" onClick={() => handletabs(0)}>
-          login
+        Already have an account?{" "}
+        <Link color="purple.500" onClick={() => handleTabs(0)}>
+          Login
         </Link>
       </Box>
     </Flex>
