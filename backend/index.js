@@ -8,31 +8,31 @@ const { initSocket } = require("./socket/index.js");
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// ✅ CORS setup (fixed for Netlify + Render)
+// ✅ CORS setup (corrected for Render + Netlify)
 const allowedOrigins = [
-  "https://aquamarine-axolotl-a57d6e.netlify.app/",
+  "https://aquamarine-axolotl-a57d6e.netlify.app", // ❌ removed trailing slash
   "http://localhost:3000",
 ];
 
-app.use(
-  cors({
-    origin: function (origin, callback) {
-      // Allow requests with no origin (like mobile apps or Postman)
-      if (!origin) return callback(null, true);
-      if (allowedOrigins.indexOf(origin) === -1) {
-        const msg =
-          "The CORS policy for this site does not allow access from the specified Origin.";
-        return callback(new Error(msg), false);
-      }
-      return callback(null, true);
-    },
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    credentials: true,
-  })
-);
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like Postman)
+    if (!origin) return callback(null, true);
+    if (!allowedOrigins.includes(origin)) {
+      const msg =
+        "The CORS policy for this site does not allow access from the specified Origin.";
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true,
+};
 
-// ✅ Explicitly handle preflight requests
-app.options("*", cors());
+// ✅ Must come before routes
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));
 
 // ✅ Middleware
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
