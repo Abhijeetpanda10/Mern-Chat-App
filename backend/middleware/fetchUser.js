@@ -1,14 +1,17 @@
-require("dotenv").config();
+// Middleware/fetchuser.js
 const jwt = require("jsonwebtoken");
+const dotenv = require("dotenv");
+dotenv.config({ path: "./.env" });
 
-const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_SECRET = process.env.JWT_SECRET || "default_secret_key";
 
 const fetchuser = (req, res, next) => {
-  const token = req.header("auth-token");
+  const token = req.header("auth-token"); // token comes from frontend
 
   if (!token) {
-    console.log("❌ No token found in request headers");
-    return res.status(401).send("Please authenticate using a valid token");
+    return res
+      .status(401)
+      .json({ error: "Please authenticate using a valid token" });
   }
 
   try {
@@ -16,8 +19,8 @@ const fetchuser = (req, res, next) => {
     req.user = data.user;
     next();
   } catch (error) {
-    console.error("❌ JWT verification failed:", error.message);
-    res.status(401).send("Please authenticate using a valid token");
+    console.error("JWT verification failed:", error.message);
+    return res.status(401).json({ error: "Invalid or expired token" });
   }
 };
 
