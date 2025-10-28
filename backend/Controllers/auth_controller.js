@@ -5,36 +5,35 @@ const nodemailer = require("nodemailer");
 const dotenv = require("dotenv");
 dotenv.config({ path: "./.env" });
 
-const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_SECRET = process.env.JWT_SECRET || "default_secret_key"; // fallback to avoid crashes
 
-// 📧 Mail Transporter (for OTP)
-let mailTransporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.EMAIL,
-    pass: process.env.PASSWORD,
-  },
-});
+// ✅ Setup nodemailer only if credentials exist
+let mailTransporter = null;
+if (process.env.EMAIL && process.env.PASSWORD) {
+  mailTransporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: process.env.EMAIL,
+      pass: process.env.PASSWORD,
+    },
+  });
+} else {
+  console.warn("⚠️ EMAIL or PASSWORD missing in .env — OTP feature disabled");
+}
 
-
-// ✅ REGISTER — Only creates a normal user (no chatbot)
+// ✅ REGISTER
 const register = async (req, res) => {
   try {
     console.log("register request received");
 
     const { name, email, password } = req.body;
-
     if (!name || !email || !password) {
-      return res.status(400).json({
-        error: "Please fill all the fields",
-      });
+      return res.status(400).json({ error: "Please fill all the fields" });
     }
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.status(400).json({
-        error: "User already exists",
-      });
+      return res.status(400).json({ error: "User already exists" });
     }
 
     const imageUrl = `https://ui-avatars.com/api/?name=${name}&background=random&bold=true`;
@@ -60,11 +59,10 @@ const register = async (req, res) => {
       authtoken,
     });
   } catch (error) {
-    console.error(error.message);
+    console.error("REGISTER ERROR:", error);
     res.status(500).send("Internal Server Error");
   }
 };
-
 
 // ✅ LOGIN
 const login = async (req, res) => {
@@ -73,9 +71,7 @@ const login = async (req, res) => {
     const { email, password, otp } = req.body;
 
     if (!email || (!password && !otp)) {
-      return res.status(400).json({
-        error: "Please fill all the fields",
-      });
+      return res.status(400).json({ error: "Please fill all the fields" });
     }
 
     const user = await User.findOne({ email });
@@ -83,6 +79,7 @@ const login = async (req, res) => {
       return res.status(400).json({ error: "Invalid Credentials" });
     }
 
+    // ✅ OTP login
     if (otp) {
       if (user.otp !== otp) {
         return res.status(400).json({ error: "Invalid OTP" });
@@ -90,6 +87,7 @@ const login = async (req, res) => {
       user.otp = "";
       await user.save();
     } else {
+      // ✅ Password login
       const passwordCompare = await bcrypt.compare(password, user.password);
       if (!passwordCompare) {
         return res.status(400).json({ error: "Invalid Credentials" });
@@ -109,11 +107,10 @@ const login = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error(error.message);
+    console.error("LOGIN ERROR:", error);
     res.status(500).send("Internal Server Error");
   }
 };
-
 
 // ✅ AUTH USER
 const authUser = async (req, res) => {
@@ -127,16 +124,18 @@ const authUser = async (req, res) => {
     const user = await User.findById(data.user.id).select("-password");
     res.json(user);
   } catch (error) {
-    console.error(error.message);
+    console.error("AUTH ERROR:", error);
     res.status(500).send("Internal Server Error");
   }
 };
-
 
 // ✅ UPDATE PROFILE
 const updateprofile = async (req, res) => {
   try {
     const dbuser = await User.findById(req.user.id);
+    if (!dbuser) {
+      return res.status(404).json({ error: "User not found" });
+    }
 
     if (req.body.newpassword) {
       const passwordCompare = await bcrypt.compare(
@@ -144,9 +143,7 @@ const updateprofile = async (req, res) => {
         dbuser.password
       );
       if (!passwordCompare) {
-        return res.status(400).json({
-          error: "Invalid Credentials",
-        });
+        return res.status(400).json({ error: "Invalid Credentials" });
       }
 
       const salt = await bcrypt.genSalt(10);
@@ -160,12 +157,12 @@ const updateprofile = async (req, res) => {
     await User.findByIdAndUpdate(req.user.id, req.body);
     res.status(200).json({ message: "Profile Updated" });
   } catch (error) {
+    console.error("UPDATE PROFILE ERROR:", error);
     res.status(500).send("Internal Server Error");
   }
 };
 
-
-// ✅ SEND OTP
+// ✅ SEND OTP (skips if Gmail not configured)
 const sendotp = async (req, res) => {
   try {
     console.log("sendotp request received");
@@ -176,17 +173,23 @@ const sendotp = async (req, res) => {
       return res.status(400).json({ error: "User not found" });
     }
 
+    if (!mailTransporter) {
+      return res.status(503).json({
+        error: "Email service not configured. OTP cannot be sent.",
+      });
+    }
+
     const otp = Math.floor(100000 + Math.random() * 900000);
     user.otp = otp;
     await user.save();
 
-    // auto-clear OTP after 5 min
-    setTimeout(() => {
+    // Auto-clear OTP after 5 min
+    setTimeout(async () => {
       user.otp = "";
-      user.save();
+      await user.save();
     }, 300000);
 
-    let mailDetails = {
+    const mailDetails = {
       from: process.env.EMAIL,
       to: email,
       subject: "Your Login OTP",
@@ -197,9 +200,9 @@ const sendotp = async (req, res) => {
       `,
     };
 
-    await mailTransporter.sendMail(mailDetails, (err, data) => {
+    mailTransporter.sendMail(mailDetails, (err) => {
       if (err) {
-        console.log("Error Occurs", err);
+        console.error("MAIL ERROR:", err);
         res.status(400).json({ message: "Error sending OTP" });
       } else {
         console.log("Email sent successfully");
@@ -207,11 +210,10 @@ const sendotp = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error(error.message);
+    console.error("SEND OTP ERROR:", error);
     res.status(500).send("Internal Server Error");
   }
 };
-
 
 module.exports = {
   register,
