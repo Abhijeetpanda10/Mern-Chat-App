@@ -40,7 +40,7 @@ const NewChats = (props) => {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
-          "auth-token": localStorage.getItem("token"),
+          "auth-token": token,
         },
       });
       if (!response.ok) {
