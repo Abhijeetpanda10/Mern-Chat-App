@@ -7,7 +7,7 @@ let io;
 const initSocket = (server) => {
   io = new Server(server, {
   cors: {
-    origin: ["http://localhost:3000" ],
+    origin: ["http://localhost:3000" , "https://aquamarine-axolotl-a57d6e.netlify.app" ],
     methods: ["GET", "POST"],
     credentials: true,
   },transports: ["websocket", "polling"]
