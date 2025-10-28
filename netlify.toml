@@ -9,7 +9,7 @@
 
 [[redirects]]
   from = "/api/*"
-  to = "https://your-backend-name.onrender.com/:splat"
+  to = "https://mern-chat-app-y5vo.onrender.com/"
   status = 200
   force = true
 
