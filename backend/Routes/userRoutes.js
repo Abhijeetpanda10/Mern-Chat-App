@@ -4,11 +4,11 @@ const fetchuser = require("../middleware/fetchUser.js");
 const {
   getPresignedUrl,
   getOnlineStatus,
-} = require("../Controllers/userController.js");
+} = require("../controllers/userController.js");  // 👈 lowercase "controllers"
 const {
   getNonFriendsList,
   updateprofile,
-} = require("../Controllers/auth_controller.js");
+} = require("../controllers/auth_controller.js");  // 👈 lowercase "controllers"
 
 router.get("/online-status/:id", fetchuser, getOnlineStatus);
 router.get("/non-friends", fetchuser, getNonFriendsList);
