@@ -10,9 +10,11 @@ function App(props) {
   const context = useContext(chatContext);
 
   return (
-    <div className="App">
-      <Navbar toggleColorMode={toggleColorMode} context={context} />
-    </div>
+    <ChatState>
+      <div className="App">
+        <Navbar toggleColorMode={toggleColorMode} context={context} />
+      </div>
+    </ChatState>
   );
 }
 
