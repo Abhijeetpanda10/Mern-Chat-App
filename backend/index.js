@@ -55,7 +55,7 @@ const server = http.createServer(app);
 // ✅ Initialize socket.io
 initSocket(server);
 
-console.log("JWT Secret loaded:", process.env.JWT_SECRET ? "✅ OK" : "❌ MISSING");
+
 
 // ✅ Start server and connect database
 server.listen(PORT, async () => {
