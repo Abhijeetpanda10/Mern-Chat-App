@@ -28,101 +28,92 @@ import { ArrowBackIcon } from "@chakra-ui/icons";
 const CFaLock = chakra(FaLock);
 
 const Login = (props) => {
-  const context = useContext(chatContext);
-  const { hostName, socket, setUser, setIsAuthenticated, fetchData } = context;
+  const { hostName, socket, setUser, setIsAuthenticated, fetchData } =
+    useContext(chatContext);
   const toast = useToast();
-  const navigator = useNavigate();
+  const navigate = useNavigate();
 
-  const [email, setemail] = useState();
-  const [password, setpassword] = useState();
-  const handletabs = props.handleTabsChange;
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const handleTabs = props.handleTabsChange;
   const [showPassword, setShowPassword] = useState(false);
-  const [forgotpasswordshow, setforgotpasswordshow] = useState(false);
-  const [sending, setsending] = useState(false);
+  const [forgotPassword, setForgotPassword] = useState(false);
+  const [sendingOtp, setSendingOtp] = useState(false);
+  const [otp, setOtp] = useState("");
 
-  const handleShowClick = () => setShowPassword(!showPassword);
-
-  const showtoast = (title, description, status) => {
+  const showToast = (title, description, status) => {
     toast({
-      title: title,
-      description: description,
-      status: status,
-      duration: 5000,
+      title,
+      description,
+      status,
+      duration: 4000,
       isClosable: true,
     });
   };
-  const handleLogin = async function (e) {
+
+  // ---------- LOGIN FUNCTION ----------
+  const handleLogin = async (e) => {
     e.preventDefault();
 
-    const data = {
-      email: email,
-    };
-
-    //check if the user is trying to login using otp
-    const otp = document.getElementById("otp")?.value;
-
-    if (otp?.length > 0 && forgotpasswordshow) {
-      data.otp = otp;
-    } else {
-      data.password = password;
-    }
+    const data = forgotPassword
+      ? { email, otp }
+      : { email, password };
 
     try {
       const response = await fetch(`${hostName}/auth/login`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
 
-      const resdata = await response.json();
+      const resData = await response.json();
 
       if (response.status !== 200) {
-        showtoast("An error occurred.", resdata.error, "error");
+        showToast("Login Failed", resData.error, "error");
       } else {
-        showtoast("Login successful", "You are now logged in", "success");
-
-        localStorage.setItem("token", resdata.authtoken);
-        setUser(await resdata.user);
-        socket.emit("setup", await resdata.user._id);
+        showToast("Login Successful", "You are now logged in!", "success");
+        localStorage.setItem("token", resData.authtoken);
+        setUser(resData.user);
+        socket.emit("setup", resData.user._id);
         setIsAuthenticated(true);
         fetchData();
-        navigator("/dashboard");
+        navigate("/dashboard");
       }
     } catch (error) {
-      console.log(error);
+      console.error(error);
+      showToast("Error", "Server not responding", "error");
     }
   };
 
-  const handlesendotp = async (e) => {
+  // ---------- SEND OTP FUNCTION ----------
+  const handleSendOtp = async (e) => {
     e.preventDefault();
-    setsending(true);
+    if (!email) {
+      showToast("Error", "Please enter your email first", "warning");
+      return;
+    }
 
-    const data = {
-      email: email,
-    };
+    setSendingOtp(true);
 
     try {
       const response = await fetch(`${hostName}/auth/getotp`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
       });
 
-      const resdata = await response.json();
-
-      setsending(false);
+      const resData = await response.json();
+      setSendingOtp(false);
 
       if (response.status !== 200) {
-        showtoast("An error occurred.", resdata.error, "error");
+        showToast("Failed", resData.error, "error");
       } else {
-        showtoast("otp sent", "otp sent to your email", "success");
+        showToast("OTP Sent", "Check your email inbox", "success");
       }
     } catch (error) {
-      console.log(error);
+      console.error(error);
+      setSendingOtp(false);
+      showToast("Error", "Server not responding", "error");
     }
   };
 
@@ -135,122 +126,105 @@ const Login = (props) => {
       alignItems="center"
       borderRadius={15}
     >
-      <Stack
-        flexDir="column"
-        mb="2"
-        justifyContent="center"
-        alignItems="center"
-      >
+      <Stack flexDir="column" mb="2" alignItems="center">
         <Avatar bg="purple.300" />
-        <Heading color="pruple.400">Welcome Back</Heading>
-        <Card minW={{ base: "90%", md: "468px" }} borderRadius={15} shadow={0}>
-          <CardBody p={0}>
+        <Heading color="purple.400">Welcome Back</Heading>
+
+        <Card minW={{ base: "90%", md: "468px" }} borderRadius={15}>
+          <CardBody>
             <form>
               <Stack spacing={4}>
-                {forgotpasswordshow && (
-                  <Tooltip label="login" aria-label="A tooltip">
+                {forgotPassword && (
+                  <Tooltip label="Back to Login">
                     <Button
-                      w={"fit-content"}
-                      onClick={() => setforgotpasswordshow(false)}
+                      w="fit-content"
+                      onClick={() => setForgotPassword(false)}
                     >
                       <ArrowBackIcon />
                     </Button>
                   </Tooltip>
                 )}
-                <FormControl display={"flex"}>
-                  <InputGroup
-                    borderEndRadius={"10px"}
-                    borderStartRadius={"10px"}
-                    size={"lg"}
-                  >
+
+                {/* Email */}
+                <FormControl display="flex">
+                  <InputGroup size="lg">
                     <Input
-                      id="login-email"
                       type="email"
-                      placeholder="email address"
+                      placeholder="Email address"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
                       focusBorderColor="purple.500"
-                      onChange={(e) => setemail(e.target.value)}
                     />
                   </InputGroup>
-                  {forgotpasswordshow && (
-                    <Button
-                      m={1}
-                      fontSize={"sm"}
-                      onClick={(e) => handlesendotp(e)}
-                    >
-                      {sending ? <Spinner size="sm" /> : "Send otp"}
+                  {forgotPassword && (
+                    <Button m={1} fontSize="sm" onClick={handleSendOtp}>
+                      {sendingOtp ? <Spinner size="sm" /> : "Send OTP"}
                     </Button>
                   )}
                 </FormControl>
 
-                {!forgotpasswordshow && (
+                {/* Password or OTP Field */}
+                {!forgotPassword ? (
                   <FormControl>
-                    <InputGroup
-                      borderEndRadius={"10px"}
-                      borderStartRadius={"10px"}
-                      size={"lg"}
-                    >
-                      <InputLeftElement
-                        pointerEvents="none"
-                        color="gray.300"
-                        children={<CFaLock color="gray.300" />}
-                      />
+                    <InputGroup size="lg">
+                      <InputLeftElement pointerEvents="none">
+                        <CFaLock color="gray.300" />
+                      </InputLeftElement>
                       <Input
                         type={showPassword ? "text" : "password"}
                         placeholder="Password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
                         focusBorderColor="purple.500"
-                        onChange={(e) => setpassword(e.target.value)}
                       />
                       <InputRightElement mx={1}>
                         <Button
-                          fontSize={"x-small"}
-                          size={"xs"}
-                          onClick={handleShowClick}
+                          fontSize="x-small"
+                          size="xs"
+                          onClick={() => setShowPassword(!showPassword)}
                         >
                           {showPassword ? "Hide" : "Show"}
                         </Button>
                       </InputRightElement>
                     </InputGroup>
                     <FormHelperText textAlign="right">
-                      <Link onClick={() => setforgotpasswordshow(true)}>
-                        forgot password?
+                      <Link onClick={() => setForgotPassword(true)}>
+                        Forgot password?
                       </Link>
                     </FormHelperText>
                   </FormControl>
-                )}
-                {forgotpasswordshow && (
+                ) : (
                   <FormControl>
-                    <InputGroup
-                      borderEndRadius={"10px"}
-                      borderStartRadius={"10px"}
-                      size={"lg"}
-                    >
+                    <InputGroup size="lg">
                       <Input
-                        id={"otp"}
                         type="number"
-                        placeholder="enter otp"
+                        placeholder="Enter OTP"
+                        value={otp}
+                        onChange={(e) => setOtp(e.target.value)}
                         focusBorderColor="purple.500"
                       />
                     </InputGroup>
                   </FormControl>
                 )}
+
+                {/* Login Button */}
                 <Button
                   borderRadius={10}
-                  type="submit"
-                  variant="solid"
                   colorScheme="purple"
                   width="full"
                   onClick={handleLogin}
                 >
-                  {forgotpasswordshow ? "Login using otp" : "Login"}
+                  {forgotPassword ? "Login with OTP" : "Login"}
                 </Button>
               </Stack>
             </form>
           </CardBody>
         </Card>
       </Stack>
+
       <Box>
         New to us?{" "}
-        <Link color="purple.500" onClick={() => handletabs(1)}>
+        <Link color="purple.500" onClick={() => handleTabs(1)}>
           Sign Up
         </Link>
       </Box>
