@@ -2,12 +2,13 @@ const User = require("../Models/User.js");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
-const dotenv = require("dotenv");
-dotenv.config({ path: "./.env" });
 
-const JWT_SECRET = process.env.JWT_SECRET || "default_secret_key"; // fallback key
+// ❌ REMOVE dotenv.config() from here — it's already loaded in server.js
 
-// ✅ Configure email (optional)
+// ✅ Use process.env directly
+const JWT_SECRET = process.env.JWT_SECRET || "default_secret_key";
+
+// ✅ Configure email transporter (optional)
 let mailTransporter = null;
 if (process.env.EMAIL && process.env.PASSWORD) {
   mailTransporter = nodemailer.createTransport({
@@ -73,7 +74,7 @@ const login = async (req, res) => {
     const user = await User.findOne({ email });
     if (!user) return res.status(400).json({ error: "Invalid Credentials" });
 
-    // ✅ OTP login
+    // OTP login
     if (otp) {
       if (user.otp !== otp)
         return res.status(400).json({ error: "Invalid OTP" });
@@ -81,7 +82,7 @@ const login = async (req, res) => {
       user.otp = "";
       await user.save();
     } else {
-      // ✅ Password login
+      // Password login
       const passwordCompare = await bcrypt.compare(password, user.password);
       if (!passwordCompare)
         return res.status(400).json({ error: "Invalid Credentials" });
@@ -153,7 +154,7 @@ const updateprofile = async (req, res) => {
   }
 };
 
-// ✅ SEND OTP (for login/forgot password)
+// ✅ SEND OTP
 const sendotp = async (req, res) => {
   try {
     console.log("➡️ SEND OTP request received");
@@ -197,7 +198,7 @@ const sendotp = async (req, res) => {
   }
 };
 
-// ✅ ADD THIS (Non-friends list)
+// ✅ GET NON FRIENDS
 const getNonFriendsList = async (req, res) => {
   try {
     const loggedInUserId = req.user.id;
@@ -211,7 +212,6 @@ const getNonFriendsList = async (req, res) => {
   }
 };
 
-// ✅ EXPORT EVERYTHING
 module.exports = {
   register,
   login,
