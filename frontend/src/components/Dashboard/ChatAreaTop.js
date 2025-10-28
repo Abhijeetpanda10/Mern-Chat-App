@@ -1,3 +1,4 @@
+import React, { useContext, useEffect } from "react";
 import {
   Box,
   Flex,
@@ -9,12 +10,11 @@ import {
   Skeleton,
   Circle,
   Stack,
+  useDisclosure,
 } from "@chakra-ui/react";
 import { ArrowBackIcon } from "@chakra-ui/icons";
-import React, { useContext, useEffect } from "react";
 import chatContext from "../../context/chatContext";
 import { ProfileModal } from "../miscellaneous/ProfileModal";
-import { useDisclosure } from "@chakra-ui/react";
 
 const ChatAreaTop = () => {
   const context = useContext(chatContext);
@@ -32,13 +32,12 @@ const ChatAreaTop = () => {
 
   const { isOpen, onOpen, onClose } = useDisclosure();
 
+  // ✅ Get Receiver Online Status
   const getReceiverOnlineStatus = async () => {
-    if (!receiver._id) {
-      return;
-    }
+    if (!receiver?._id) return;
 
     try {
-      const repsonse = await fetch(
+      const response = await fetch(
         `${hostName}/user/online-status/${receiver._id}`,
         {
           method: "GET",
@@ -48,122 +47,142 @@ const ChatAreaTop = () => {
           },
         }
       );
-      const data = await repsonse.json();
-      setReceiver((receiver) => ({
-        ...receiver,
+
+      if (!response.ok) throw new Error("Failed to fetch online status");
+
+      const data = await response.json();
+      setReceiver((prev) => ({
+        ...prev,
         isOnline: data.isOnline,
+        lastSeen: data.lastSeen || prev.lastSeen,
       }));
-    } catch (error) {}
+    } catch (error) {
+      console.warn("Error fetching receiver status:", error.message);
+    }
   };
 
+  // ✅ Go Back Handler
   const handleBack = () => {
-    socket.emit("leave-chat", activeChatId);
-    setActiveChatId("");
-    setMessageList([]);
-    setReceiver({});
+    try {
+      socket.emit("leave-chat", activeChatId);
+      setActiveChatId("");
+      setMessageList([]);
+      setReceiver({});
+    } catch (error) {
+      console.error("Error leaving chat:", error.message);
+    }
   };
 
+  // ✅ Format Last Seen String
   const getLastSeenString = (lastSeen) => {
-    var lastSeenString = "last seen ";
-    if (new Date(lastSeen).toDateString() === new Date().toDateString()) {
-      lastSeenString += "today ";
+    if (!lastSeen) return "offline";
+
+    let result = "last seen ";
+    const lastSeenDate = new Date(lastSeen);
+    const today = new Date();
+
+    if (lastSeenDate.toDateString() === today.toDateString()) {
+      result += "today ";
     } else if (
-      new Date(lastSeen).toDateString() ===
-      new Date(new Date().setDate(new Date().getDate() - 1)).toDateString()
+      lastSeenDate.toDateString() ===
+      new Date(today.setDate(today.getDate() - 1)).toDateString()
     ) {
-      lastSeenString += "yesterday ";
+      result += "yesterday ";
     } else {
-      lastSeenString += `on ${new Date(lastSeen).toLocaleDateString()} `;
+      result += `on ${lastSeenDate.toLocaleDateString()} `;
     }
 
-    lastSeenString += `at ${new Date(lastSeen).toLocaleTimeString([], {
+    result += `at ${lastSeenDate.toLocaleTimeString([], {
       hour: "2-digit",
       minute: "2-digit",
     })}`;
 
-    return lastSeenString;
+    return result;
   };
 
   useEffect(() => {
     getReceiverOnlineStatus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [receiver?._id]);
+
   return (
     <>
-      <Flex w={"100%"}>
+      <Flex w="100%" alignItems="center" borderBottom="1px solid" borderColor="gray.200">
+        {/* 🔙 Back Button */}
         <Button
           borderRadius={0}
-          height={"inherit"}
-          onClick={() => handleBack()}
+          height="inherit"
+          onClick={handleBack}
+          aria-label="Back"
         >
           <ArrowBackIcon />
         </Button>
-        <Tooltip label="View Profile">
+
+        {/* 👤 Profile Section */}
+        <Tooltip label="View Profile" hasArrow>
           <Button
-            w={"100%"}
-            mr={0}
+            w="100%"
             p={2}
-            h={"max-content"}
-            justifyContent={"space-between"}
-            borderRadius={"0px"}
+            h="max-content"
+            justifyContent="space-between"
+            borderRadius="0px"
             onClick={onOpen}
+            variant="ghost"
+            _hover={{ bg: "gray.50" }}
           >
             {isChatLoading ? (
-              <>
-                <Flex>
-                  <SkeletonCircle size="10" mx={2} />
-                  <Skeleton
-                    height="20px"
-                    width="250px"
-                    borderRadius={"md"}
-                    my={2}
-                  />
-                </Flex>
-              </>
+              <Flex align="center">
+                <SkeletonCircle size="10" mx={2} />
+                <Skeleton height="20px" width="250px" borderRadius="md" my={2} />
+              </Flex>
             ) : (
-              <>
-                <Flex gap={2} alignItems={"center"}>
-                  <Image
-                    borderRadius="full"
-                    boxSize="40px"
-                    src={receiver.profilePic}
-                    alt=""
-                  />
+              <Flex gap={2} alignItems="center">
+                <Image
+                  borderRadius="full"
+                  boxSize="40px"
+                  src={receiver?.profilePic || "/default-avatar.png"}
+                  alt={receiver?.name || "User"}
+                />
 
-                  <Stack
-                    justifyContent={"center"}
-                    m={0}
-                    p={0}
-                    lineHeight={1}
-                    gap={0}
-                    textAlign={"left"}
+                <Stack
+                  justifyContent="center"
+                  spacing={0}
+                  textAlign="left"
+                  lineHeight={1}
+                >
+                  <Text
+                    fontSize="lg"
+                    fontWeight="semibold"
+                    mx={1}
+                    my={receiver?.isOnline ? 0 : 1}
                   >
-                    <Text mx={1} my={receiver.isOnline ? 0 : 2} fontSize="2xl">
-                      {receiver.name}
+                    {receiver?.name || "Unknown User"}
+                  </Text>
+
+                  {receiver?.isOnline ? (
+                    <Text mx={1} fontSize="sm" color="green.500">
+                      <Circle
+                        size="2"
+                        bg="green.500"
+                        display="inline-block"
+                        borderRadius="full"
+                        mx={1}
+                      />
+                      active now
                     </Text>
-                    {receiver.isOnline ? (
-                      <Text mx={1} fontSize={"small"}>
-                        <Circle
-                          size="2"
-                          bg="green.500"
-                          display="inline-block"
-                          borderRadius="full"
-                          mx={1}
-                        />
-                        active now
-                      </Text>
-                    ) : (
-                      <Text my={0} mx={1} fontSize={"xx-small"}>
-                        {getLastSeenString(receiver.lastSeen)}
-                      </Text>
-                    )}
-                  </Stack>
-                </Flex>
-              </>
+                  ) : (
+                    <Text my={0} mx={1} fontSize="xs" color="gray.500">
+                      {getLastSeenString(receiver?.lastSeen)}
+                    </Text>
+                  )}
+                </Stack>
+              </Flex>
             )}
           </Button>
         </Tooltip>
       </Flex>
 
+      {/* 🧩 Profile Modal */}
       <ProfileModal isOpen={isOpen} onClose={onClose} user={receiver} />
     </>
   );
