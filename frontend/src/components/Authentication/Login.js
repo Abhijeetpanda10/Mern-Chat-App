@@ -35,29 +35,23 @@ const Login = (props) => {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const handleTabs = props.handleTabsChange;
+  const [otp, setOtp] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [forgotPassword, setForgotPassword] = useState(false);
   const [sendingOtp, setSendingOtp] = useState(false);
-  const [otp, setOtp] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const showToast = (title, description, status) => {
-    toast({
-      title,
-      description,
-      status,
-      duration: 4000,
-      isClosable: true,
-    });
-  };
+  const handleTabs = props.handleTabsChange;
 
-  // ---------- LOGIN FUNCTION ----------
+  const showToast = (title, description, status) =>
+    toast({ title, description, status, duration: 4000, isClosable: true });
+
+  // 🔑 LOGIN FUNCTION
   const handleLogin = async (e) => {
     e.preventDefault();
+    setLoading(true);
 
-    const data = forgotPassword
-      ? { email, otp }
-      : { email, password };
+    const data = forgotPassword ? { email, otp } : { email, password };
 
     try {
       const response = await fetch(`${hostName}/auth/login`, {
@@ -66,35 +60,46 @@ const Login = (props) => {
         body: JSON.stringify(data),
       });
 
-      const resData = await response.json();
-
-      if (response.status !== 200) {
-        showToast("Login Failed", resData.error, "error");
-      } else {
-        showToast("Login Successful", "You are now logged in!", "success");
-        localStorage.setItem("token", resData.authtoken);
-        setUser(resData.user);
-        socket.emit("setup", resData.user._id);
-        setIsAuthenticated(true);
-        fetchData();
-        navigate("/dashboard");
+      let resData;
+      try {
+        resData = await response.json();
+      } catch {
+        showToast("Error", "Server returned invalid JSON", "error");
+        setLoading(false);
+        return;
       }
+
+      if (!response.ok) {
+        showToast("Login Failed", resData?.error || "Something went wrong", "error");
+        setLoading(false);
+        return;
+      }
+
+      // ✅ Successful login
+      localStorage.setItem("token", resData.authtoken);
+      setUser(resData.user);
+      socket.emit("setup", resData.user._id);
+      setIsAuthenticated(true);
+      fetchData();
+
+      showToast("Success", "Login successful!", "success");
+      navigate("/dashboard");
     } catch (error) {
       console.error(error);
-      showToast("Error", "Server not responding", "error");
+      showToast("Error", "Unable to reach server", "error");
+    } finally {
+      setLoading(false);
     }
   };
 
-  // ---------- SEND OTP FUNCTION ----------
-  const handleSendOtp = async (e) => {
-    e.preventDefault();
+  // ✉️ SEND OTP FUNCTION
+  const handleSendOtp = async () => {
     if (!email) {
-      showToast("Error", "Please enter your email first", "warning");
+      showToast("Error", "Enter your email first", "warning");
       return;
     }
 
     setSendingOtp(true);
-
     try {
       const response = await fetch(`${hostName}/auth/getotp`, {
         method: "POST",
@@ -103,17 +108,16 @@ const Login = (props) => {
       });
 
       const resData = await response.json();
-      setSendingOtp(false);
-
-      if (response.status !== 200) {
-        showToast("Failed", resData.error, "error");
+      if (!response.ok) {
+        showToast("Failed", resData?.error || "OTP sending failed", "error");
       } else {
-        showToast("OTP Sent", "Check your email inbox", "success");
+        showToast("Success", "OTP sent to your email", "success");
       }
     } catch (error) {
       console.error(error);
+      showToast("Error", "Unable to send OTP", "error");
+    } finally {
       setSendingOtp(false);
-      showToast("Error", "Server not responding", "error");
     }
   };
 
@@ -163,7 +167,7 @@ const Login = (props) => {
                   )}
                 </FormControl>
 
-                {/* Password or OTP Field */}
+                {/* Password or OTP */}
                 {!forgotPassword ? (
                   <FormControl>
                     <InputGroup size="lg">
@@ -213,6 +217,7 @@ const Login = (props) => {
                   colorScheme="purple"
                   width="full"
                   onClick={handleLogin}
+                  isLoading={loading}
                 >
                   {forgotPassword ? "Login with OTP" : "Login"}
                 </Button>
