@@ -13,6 +13,7 @@ import { useNavigate } from "react-router-dom";
 import chatContext from "../../context/chatContext";
 import Chats from "./Chats";
 import { ChatArea } from "./ChatArea";
+import socket from "../../socket"; // ✅ Added this line
 
 const Dashboard = () => {
   const context = useContext(chatContext);
@@ -21,6 +22,22 @@ const Dashboard = () => {
   const toast = useToast();
 
   const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // ✅ Connect socket when Dashboard mounts
+    socket.on("connect", () => {
+      console.log("✅ Connected to backend via socket:", socket.id);
+    });
+
+    socket.on("disconnect", () => {
+      console.log("❌ Disconnected from backend");
+    });
+
+    return () => {
+      socket.off("connect");
+      socket.off("disconnect");
+    };
+  }, []);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -33,9 +50,7 @@ const Dashboard = () => {
       });
       navigator("/");
     }
-
-    return () => {};
-  }, [isAuthenticated]);
+  }, [isAuthenticated, toast, navigator]);
 
   setTimeout(async () => {
     if (!isAuthenticated) {
