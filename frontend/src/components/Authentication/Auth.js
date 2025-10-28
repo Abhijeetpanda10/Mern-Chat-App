@@ -4,17 +4,23 @@ import Signup from "./Signup";
 import React from "react";
 
 const Auth = (props) => {
-  const [activetab, setactivetab] = React.useState(props.tabindex);
+  const [activeTab, setActiveTab] = React.useState(props.tabindex || 0);
 
   const handleTabsChange = (index) => {
-    setactivetab(index);
+    setActiveTab(index);
   };
 
   return (
-    <Tabs isFitted variant="enclosed" index={activetab} colorScheme="purple">
+    <Tabs
+      isFitted
+      variant="enclosed"
+      index={activeTab}
+      colorScheme="purple"
+      onChange={handleTabsChange}
+    >
       <TabList mb="2em">
-        <Tab onClick={() => handleTabsChange(0)}>Login</Tab>
-        <Tab onClick={() => handleTabsChange(1)}>Sign Up</Tab>
+        <Tab>Login</Tab>
+        <Tab>Sign Up</Tab>
       </TabList>
       <TabPanels>
         <TabPanel p={0}>
