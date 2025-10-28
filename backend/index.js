@@ -8,7 +8,7 @@ const app = express();
 app.use(cors({
   origin: [
     "https://aquamarine-axolotl-a57d6e.netlify.app",
-    "https://mern-chat-app-y5vo.onrender.com/"
+    "http://localhost:3000" 
     
   ],
   methods: ["GET", "POST"],
