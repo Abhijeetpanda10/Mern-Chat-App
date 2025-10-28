@@ -5,8 +5,11 @@ import io from "socket.io-client";
 //http://192.168.0.104:5000
 //https://chat-app-u2cq.onrender.com
 // http://localhost:5000
-const hostName = "http://localhost:5000";
-var socket = io(hostName);
+const hostName = "https://mern-chat-app-y5vo.onrender.com";
+var socket = io(hostName, {
+  transports: ["websocket"],
+  withCredentials: true,
+});
 
 const ChatState = (props) => {
   const [isAuthenticated, setIsAuthenticated] = useState(
